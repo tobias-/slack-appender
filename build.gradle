@@ -1,0 +1,146 @@
+plugins {
+	id 'net.researchgate.release' version '2.2.0'
+}
+
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+targetCompatibility = "1.7"
+sourceCompatibility = "1.7"
+
+def gitpath = "github.com/${githubUser}/${archivesBaseName}.git"
+
+release {
+	tagPrefix = group
+}
+
+configurations {
+	archives
+	provided {
+		dependencies.all { dep ->
+			configurations.default.exclude group: dep.group, module: dep.name
+		}
+	}
+	compile.extendsFrom provided
+}
+
+repositories {
+	mavenCentral()
+}
+
+
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+	classifier = 'sources'
+	from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+	classifier = 'javadoc'
+	from javadoc.destinationDir
+	if (JavaVersion.current().isJava8Compatible()) {
+		tasks.withType(Javadoc) {
+			options.addStringOption('Xdoclint:none', '-quiet')
+		}
+	}
+}
+
+if (!hasProperty('nexusUsername')) {
+	ext.nexusUsername = ''
+	ext.nexusPassword = ''
+}
+
+task checkReleaseConfig(dependsOn: clean) << {
+	def requiredConfigs= ['nexusPassword', 'nexusUsername', 'signing.password', 'signing.keyId', 'signing.secretKeyRingFile']
+	def notFoundProperties = requiredConfigs.findAll {
+		!project.hasProperty(it) || !project.getProperties()[it]
+	}
+	if (notFoundProperties) {
+		throw new GradleException("""
+		Not found properties: ${notFoundProperties}
+
+		The following is needed to upload (put in ~/.gradle/gradle.properties)
+		nexusUsername=<login for https://oss.sonatype.org/>
+		nexusPassword=<password for https://oss.sonatype.org/>
+
+		signing.password=<password for gpg key>
+		signing.keyId=<keyId>
+		signing.secretKeyRingFile=<path to secring.gpg>
+		""")
+	}
+}
+
+artifacts {
+	archives sourcesJar
+	archives javadocJar
+}
+
+signing {
+	required { false }
+	sign configurations.archives
+}
+
+dependencies {
+	provided 'com.squareup.okhttp:okhttp:2.5.0'
+	compile 'com.google.code.gson:gson:2.3.1'
+	testCompile 'junit:junit:4.10'
+}
+
+
+uploadArchives {
+	repositories {
+		mavenDeployer {
+			pom.artifactId = project.name
+			configuration = configurations.archives
+
+			repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+				authentication(userName: nexusUsername, password: nexusPassword)
+			}
+			pom.project {
+				url 'http://${gitpath}'
+				inceptionYear '2015'
+				name archivesBaseName
+				description project.description
+
+				scm {
+					url "scm:git:https://${gitpath}"
+					connection "scm:git:ssh://git@${gitpath}"
+				}
+
+				licenses {
+					license {
+						name 'MIT'
+						comments new File(rootDir, 'LICENSE').getText()
+						url 'https://opensource.org/licenses/MIT'
+						distribution 'repo'
+					}
+				}
+				developers {
+					developer {
+						id 'tobias-'
+						name 'Tobias Olsson'
+						email 'tobias@olsson.be'
+					}
+				}
+			}
+			pom.packaging = 'jar'
+			beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+		}
+	}
+}
+
+createReleaseTag.dependsOn uploadArchives
+
+checkCommitNeeded.dependsOn checkReleaseConfig
+
+test {
+	[ "SLACK_WEBHOOK" ].each { envVar ->
+		if (project.hasProperty(envVar)) {
+			jvmArgs "-D${envVar}=${project.getProperty(envVar)}"
+		} else if (!System.env[envVar]) {
+			logger.warn("Didn't find ${envVar} property. This means tests will probably fail")
+		}
+	}
+}
