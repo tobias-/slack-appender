@@ -38,32 +38,30 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
     };
 
     private final OkHttpClient okHttpClient = new OkHttpClient();
-    private final Map<Level, String> iconMap;
-    private final Map<Level, String> colorMap;
+    private final Map<Integer, String> iconMap;
+    private final Map<Integer, String> colorMap;
     private URL webhookUrl;
     private String username; // e.g. "Blazkowicz";
     private String channel;
     private final Gson gson = new GsonBuilder().create();
     private boolean markdown;
 
-
     public SlackAppender() {
-        // url = "https://hooks.slack.com/services/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";
-        Map<Level, String> iconMap = new HashMap<>();
-        iconMap.put(Level.TRACE, ":pawprints:");
-        iconMap.put(Level.DEBUG, ":beetle:");
-        iconMap.put(Level.INFO, ":suspect:");
-        iconMap.put(Level.WARN, ":goberserk:");
-        iconMap.put(Level.ERROR, ":feelsgood:");
-        iconMap.put(Level.FATAL, ":finnadie:");
+        Map<Integer, String> iconMap = new HashMap<>();
+        iconMap.put(Level.TRACE.toInt(), ":pawprints:");
+        iconMap.put(Level.DEBUG.toInt(), ":beetle:");
+        iconMap.put(Level.INFO.toInt(), ":suspect:");
+        iconMap.put(Level.WARN.toInt(), ":goberserk:");
+        iconMap.put(Level.ERROR.toInt(), ":feelsgood:");
+        iconMap.put(Level.FATAL.toInt(), ":finnadie:");
         this.iconMap = unmodifiableMap(iconMap);
-        Map<Level, String> colorMap = new HashMap<>();
-        colorMap.put(Level.TRACE, "#6f6d6d");
-        colorMap.put(Level.DEBUG, "#b5dae9");
-        colorMap.put(Level.INFO, "#5f9ea0");
-        colorMap.put(Level.WARN, "#ff9122");
-        colorMap.put(Level.ERROR, "#ff4444");
-        colorMap.put(Level.FATAL, "#b03e3c");
+        Map<Integer, String> colorMap = new HashMap<>();
+        colorMap.put(Level.TRACE.toInt(), "#6f6d6d");
+        colorMap.put(Level.DEBUG.toInt(), "#b5dae9");
+        colorMap.put(Level.INFO.toInt(), "#5f9ea0");
+        colorMap.put(Level.WARN.toInt(), "#ff9122");
+        colorMap.put(Level.ERROR.toInt(), "#ff4444");
+        colorMap.put(Level.FATAL.toInt(), "#b03e3c");
         this.colorMap = unmodifiableMap(colorMap);
     }
 
@@ -83,12 +81,12 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
         String logStatement = getLayout().format(event);
         SlackMessage slackMessage = new SlackMessage();
         slackMessage.channel = channel;
-        slackMessage.iconEmoji = iconMap.get(event.getLevel());
+        slackMessage.iconEmoji = iconMap.get(event.getLevel().toInt());
         slackMessage.username = username;
         slackMessage.text = logStatement;
         slackMessage.attachments = new ArrayList<>();
         Attachment attachment = new Attachment();
-        attachment.color = colorMap.get(event.getLevel());
+        attachment.color = colorMap.get(event.getLevel().toInt());
         attachment.fallback = logStatement;
         attachment.pretext = logStatement;
         event.getThrowableStrRep();
