@@ -17,10 +17,10 @@ import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableMap;
 
 public class SlackAppender extends AppenderSkeleton implements Appender, Closeable {
@@ -95,7 +95,7 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
         attachment.text = getLayout().format(event);
         if (markdown) {
             slackMessage.mrkdwn = true;
-            attachment.mrkdwn_in = Arrays.asList("text", "pretext");
+            attachment.mrkdwn_in = singletonList("text");
         }
         slackMessage.attachments.add(attachment);
         postSlackMessage(slackMessage);
