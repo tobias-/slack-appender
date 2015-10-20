@@ -88,9 +88,10 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
         Attachment attachment = new Attachment();
         attachment.color = colorMap.get(event.getLevel().toInt());
         attachment.fallback = logStatement;
-        attachment.pretext = logStatement;
         event.getThrowableStrRep();
-        attachment.text = getLayout().format(event);
+        StringWriter stringWriter = new StringWriter();
+        event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
+        attachment.text = stringWriter.toString();
         if (markdown) {
             slackMessage.mrkdwn = true;
             attachment.mrkdwn_in = singletonList("text");
