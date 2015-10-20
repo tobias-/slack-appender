@@ -12,6 +12,8 @@ import org.apache.log4j.spi.LoggingEvent;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -23,6 +25,17 @@ import static java.util.Collections.unmodifiableMap;
 
 public class SlackAppender extends AppenderSkeleton implements Appender, Closeable {
     private static final MediaType JSON = MediaType.parse("application/json");
+    private static final Callback RESPONSE_CALLBACK = new Callback() {
+        @Override
+        public void onFailure(Request request, IOException e) {
+            System.err.println(e.getMessage());;
+        }
+
+        @Override
+        public void onResponse(Response response) throws IOException {
+            response.body().string();
+        }
+    };
 
     private final OkHttpClient okHttpClient = new OkHttpClient();
     private final Map<Level, String> iconMap;
@@ -92,16 +105,8 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
         try {
             String payload = gson.toJson(slackMessage);
             Request request = new Builder().url(webhookUrl).post(RequestBody.create(JSON, payload)).build();
-            okHttpClient.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(Request request, IOException e) {
-                }
-
-                @Override
-                public void onResponse(Response response) throws IOException {
-                    response.body().string();
-                }
-            });
+            Call call = okHttpClient.newCall(request);
+            call.enqueue(RESPONSE_CALLBACK);
         } catch (Exception e) {
         }
     }
