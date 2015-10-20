@@ -41,7 +41,7 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
     private final Map<Integer, String> iconMap;
     private final Map<Integer, String> colorMap;
     private URL webhookUrl;
-    private String username; // e.g. "Blazkowicz";
+    private String username = "Blazkowicz";
     private String channel;
     private final Gson gson = new GsonBuilder().create();
     private boolean markdown;
