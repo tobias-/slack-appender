@@ -107,6 +107,8 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
             Call call = okHttpClient.newCall(request);
             call.enqueue(RESPONSE_CALLBACK);
         } catch (Exception e) {
+            e.printStackTrace();
+            // Not much to do. Can't really log it via log4j
         }
     }
 
