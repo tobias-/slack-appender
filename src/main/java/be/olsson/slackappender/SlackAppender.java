@@ -73,31 +73,33 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
 
     @Override
     protected void append(final LoggingEvent event) {
-        event.getNDC();
-        event.getThreadName();
-        event.getMDCCopy();
-        event.getLocationInformation();
-        event.getRenderedMessage();
-        String logStatement = getLayout().format(event);
-        SlackMessage slackMessage = new SlackMessage();
-        slackMessage.channel = channel;
-        slackMessage.iconEmoji = iconMap.get(event.getLevel().toInt());
-        slackMessage.username = username;
-        slackMessage.text = logStatement;
-        slackMessage.attachments = new ArrayList<>();
-        Attachment attachment = new Attachment();
-        attachment.color = colorMap.get(event.getLevel().toInt());
-        attachment.fallback = logStatement;
-        event.getThrowableStrRep();
-        StringWriter stringWriter = new StringWriter();
-        event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
-        attachment.text = stringWriter.toString();
-        if (markdown) {
-            slackMessage.mrkdwn = true;
-            attachment.mrkdwn_in = singletonList("text");
+        if (webhookUrl != null) {
+            event.getNDC();
+            event.getThreadName();
+            event.getMDCCopy();
+            event.getLocationInformation();
+            event.getRenderedMessage();
+            String logStatement = getLayout().format(event);
+            SlackMessage slackMessage = new SlackMessage();
+            slackMessage.channel = channel;
+            slackMessage.iconEmoji = iconMap.get(event.getLevel().toInt());
+            slackMessage.username = username;
+            slackMessage.text = logStatement;
+            slackMessage.attachments = new ArrayList<>();
+            Attachment attachment = new Attachment();
+            attachment.color = colorMap.get(event.getLevel().toInt());
+            attachment.fallback = logStatement;
+            event.getThrowableStrRep();
+            StringWriter stringWriter = new StringWriter();
+            event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
+            attachment.text = stringWriter.toString();
+            if (markdown) {
+                slackMessage.mrkdwn = true;
+                attachment.mrkdwn_in = singletonList("text");
+            }
+            slackMessage.attachments.add(attachment);
+            postSlackMessage(slackMessage);
         }
-        slackMessage.attachments.add(attachment);
-        postSlackMessage(slackMessage);
     }
 
     protected void postSlackMessage(SlackMessage slackMessage) {
