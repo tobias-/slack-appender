@@ -81,6 +81,7 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
             event.getRenderedMessage();
             String logStatement = getLayout().format(event);
             SlackMessage slackMessage = new SlackMessage();
+            slackMessage.text = logStatement;
             slackMessage.channel = channel;
             slackMessage.iconEmoji = iconMap.get(event.getLevel().toInt());
             slackMessage.username = username;
@@ -90,12 +91,9 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
             attachment.fallback = logStatement;
             event.getThrowableStrRep();
             StringWriter stringWriter = new StringWriter();
+            stringWriter.append(event.getRenderedMessage()).append('\n');
             if (event.getThrowableInformation() != null) {
-                slackMessage.text = logStatement;
                 event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
-            } else {
-                stringWriter.append(logStatement);
-                slackMessage.text = "";
             }
             attachment.text = stringWriter.toString();
             if (markdown) {
