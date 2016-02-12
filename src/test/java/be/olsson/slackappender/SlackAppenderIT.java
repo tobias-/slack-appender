@@ -28,6 +28,12 @@ public class SlackAppenderIT {
     }
 
     @Test
+    public void sendInfoWithoutStack() throws InterruptedException {
+        Logger.getLogger(getClass()).warn("Test warning");
+        Thread.sleep(1000);
+    }
+
+    @Test
     public void sendInfo() throws InterruptedException {
         Logger.getLogger(getClass()).warn("Test warning", new Throwable("This is a test exception"));
         Thread.sleep(1000);

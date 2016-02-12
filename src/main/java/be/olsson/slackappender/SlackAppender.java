@@ -84,14 +84,19 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
             slackMessage.channel = channel;
             slackMessage.iconEmoji = iconMap.get(event.getLevel().toInt());
             slackMessage.username = username;
-            slackMessage.text = logStatement;
             slackMessage.attachments = new ArrayList<>();
             Attachment attachment = new Attachment();
             attachment.color = colorMap.get(event.getLevel().toInt());
             attachment.fallback = logStatement;
             event.getThrowableStrRep();
             StringWriter stringWriter = new StringWriter();
-            event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
+            if (event.getThrowableInformation() != null) {
+                slackMessage.text = logStatement;
+                event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
+            } else {
+                stringWriter.append(logStatement);
+                slackMessage.text = "";
+            }
             attachment.text = stringWriter.toString();
             if (markdown) {
                 slackMessage.mrkdwn = true;
