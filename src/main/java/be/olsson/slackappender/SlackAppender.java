@@ -73,7 +73,7 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
 
     @Override
     protected void append(final LoggingEvent event) {
-        if (webhookUrl != null) {
+        if (!isAppenderDisabled()) {
             event.getNDC();
             event.getThreadName();
             event.getMDCCopy();
@@ -133,10 +133,14 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
     }
 
     public void setWebhookUrl(String webhookUrl) {
-        try {
-            this.webhookUrl = new URL(webhookUrl);
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(e);
+        if (webhookUrl == null || webhookUrl.isEmpty()) {
+            this.webhookUrl = null;
+        } else {
+            try {
+                this.webhookUrl = new URL(webhookUrl);
+            } catch (MalformedURLException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
     }
 
