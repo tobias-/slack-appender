@@ -60,6 +60,8 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
     private final Gson gson = new GsonBuilder().create();
     private boolean markdown;
     private boolean meltdownProtection = true;
+    private int similarMessageSize = 50;
+    private int timeBetweenSimilarLogsMs = 60000;
 
     @SuppressWarnings("SerializableInnerClassWithNonSerializableOuterClass")
     private final LinkedHashMap<String, MessageStat> similar = new LinkedHashMap<String, MessageStat>() {
@@ -67,7 +69,7 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 
 	@Override
 	protected boolean removeEldestEntry(Map.Entry eldest) {
-	    return size() > 50;
+	    return size() > similarMessageSize;
 	}
     };
 
@@ -102,7 +104,7 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 	if (!isAppenderDisabled() && event.getMessage() != null) {
 	    SlackAppender.MessageStat stat = getMessageStat(event);
 
-	    if (stat == null || System.currentTimeMillis() - stat.lastLogged > 60000) {
+	    if (stat == null || System.currentTimeMillis() - stat.lastLogged > timeBetweenSimilarLogsMs) {
 		event.getNDC();
 		event.getThreadName();
 		event.getMDCCopy();
@@ -235,5 +237,21 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 
     public void setMeltdownProtection(boolean meltdownProtection) {
 	this.meltdownProtection = meltdownProtection;
+    }
+
+    public int getSimilarMessageSize() {
+	return similarMessageSize;
+    }
+
+    public void setSimilarMessageSize(int similarMessageSize) {
+	this.similarMessageSize = similarMessageSize;
+    }
+
+    public int getTimeBetweenSimilarLogsMs() {
+	return timeBetweenSimilarLogsMs;
+    }
+
+    public void setTimeBetweenSimilarLogsMs(int timeBetweenSimilarLogsMs) {
+	this.timeBetweenSimilarLogsMs = timeBetweenSimilarLogsMs;
     }
 }
