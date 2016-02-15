@@ -34,15 +34,15 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 
     private static final MediaType JSON = MediaType.parse("application/json");
     private static final Callback RESPONSE_CALLBACK = new Callback() {
-        @Override
-        public void onFailure(Request request, IOException e) {
-            System.err.println(e.getMessage());;
-        }
+	@Override
+	public void onFailure(Request request, IOException e) {
+	    System.err.println(e.getMessage());
+	}
 
-        @Override
-        public void onResponse(Response response) throws IOException {
-            response.body().string();
-        }
+	@Override
+	public void onResponse(Response response) throws IOException {
+	    response.body().string();
+	}
     };
 
     private static class MessageStat {
@@ -72,28 +72,28 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
     };
 
     public SlackAppender() {
-        Map<Integer, String> iconMap = new HashMap<>();
-        iconMap.put(Level.TRACE.toInt(), ":pawprints:");
-        iconMap.put(Level.DEBUG.toInt(), ":beetle:");
-        iconMap.put(Level.INFO.toInt(), ":suspect:");
-        iconMap.put(Level.WARN.toInt(), ":goberserk:");
-        iconMap.put(Level.ERROR.toInt(), ":feelsgood:");
-        iconMap.put(Level.FATAL.toInt(), ":finnadie:");
-        this.iconMap = unmodifiableMap(iconMap);
-        Map<Integer, String> colorMap = new HashMap<>();
-        colorMap.put(Level.TRACE.toInt(), "#6f6d6d");
-        colorMap.put(Level.DEBUG.toInt(), "#b5dae9");
-        colorMap.put(Level.INFO.toInt(), "#5f9ea0");
-        colorMap.put(Level.WARN.toInt(), "#ff9122");
-        colorMap.put(Level.ERROR.toInt(), "#ff4444");
-        colorMap.put(Level.FATAL.toInt(), "#b03e3c");
-        this.colorMap = unmodifiableMap(colorMap);
+	Map<Integer, String> iconMap = new HashMap<>();
+	iconMap.put(Level.TRACE.toInt(), ":pawprints:");
+	iconMap.put(Level.DEBUG.toInt(), ":beetle:");
+	iconMap.put(Level.INFO.toInt(), ":suspect:");
+	iconMap.put(Level.WARN.toInt(), ":goberserk:");
+	iconMap.put(Level.ERROR.toInt(), ":feelsgood:");
+	iconMap.put(Level.FATAL.toInt(), ":finnadie:");
+	this.iconMap = unmodifiableMap(iconMap);
+	Map<Integer, String> colorMap = new HashMap<>();
+	colorMap.put(Level.TRACE.toInt(), "#6f6d6d");
+	colorMap.put(Level.DEBUG.toInt(), "#b5dae9");
+	colorMap.put(Level.INFO.toInt(), "#5f9ea0");
+	colorMap.put(Level.WARN.toInt(), "#ff9122");
+	colorMap.put(Level.ERROR.toInt(), "#ff4444");
+	colorMap.put(Level.FATAL.toInt(), "#b03e3c");
+	this.colorMap = unmodifiableMap(colorMap);
     }
 
     protected SlackAppender(Layout layout) {
-        this();
-        setLayout(layout);
-        activateOptions();
+	this();
+	setLayout(layout);
+	activateOptions();
     }
 
     @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
@@ -165,15 +165,15 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
     }
 
     protected void postSlackMessage(SlackMessage slackMessage) {
-        try {
-            String payload = gson.toJson(slackMessage);
-            Request request = new Builder().url(webhookUrl).post(RequestBody.create(JSON, payload)).build();
-            Call call = okHttpClient.newCall(request);
-            call.enqueue(RESPONSE_CALLBACK);
-        } catch (Exception e) {
-            e.printStackTrace();
-            // Not much to do. Can't really log it via log4j
-        }
+	try {
+	    String payload = gson.toJson(slackMessage);
+	    Request request = new Builder().url(webhookUrl).post(RequestBody.create(JSON, payload)).build();
+	    Call call = okHttpClient.newCall(request);
+	    call.enqueue(RESPONSE_CALLBACK);
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    // Not much to do. Can't really log it via log4j
+	}
     }
 
     @Override
@@ -182,51 +182,51 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 
     @Override
     public boolean requiresLayout() {
-        return true;
+	return true;
     }
 
     public String getWebhookUrl() {
-        return webhookUrl == null ? null : webhookUrl.toString();
+	return webhookUrl == null ? null : webhookUrl.toString();
     }
 
     public void setWebhookUrl(String webhookUrl) {
-        if (webhookUrl == null || webhookUrl.isEmpty()) {
-            this.webhookUrl = null;
-        } else {
-            try {
-                this.webhookUrl = new URL(webhookUrl);
-            } catch (MalformedURLException e) {
-                throw new IllegalArgumentException(e);
-            }
-        }
+	if (webhookUrl == null || webhookUrl.isEmpty()) {
+	    this.webhookUrl = null;
+	} else {
+	    try {
+		this.webhookUrl = new URL(webhookUrl);
+	    } catch (MalformedURLException e) {
+		throw new IllegalArgumentException(e);
+	    }
+	}
     }
 
     public String getChannel() {
-        return channel;
+	return channel;
     }
 
     public void setChannel(String channel) {
-        this.channel = channel;
+	this.channel = channel;
     }
 
     public void setUsername(final String username) {
-        this.username = username;
+	this.username = username;
     }
 
     public String getUsername() {
-        return username;
+	return username;
     }
 
     public boolean isAppenderDisabled() {
-        return webhookUrl == null;
+	return webhookUrl == null;
     }
 
     public boolean isMarkdown() {
-        return markdown;
+	return markdown;
     }
 
     public void setMarkdown(boolean markdown) {
-        this.markdown = markdown;
+	this.markdown = markdown;
     }
 
     public boolean isMeltdownProtection() {
