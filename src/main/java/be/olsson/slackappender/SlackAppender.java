@@ -148,7 +148,7 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 	}
     }
 
-    private MessageStat getMessageStat(LoggingEvent event) {
+    private synchronized MessageStat getMessageStat(LoggingEvent event) {
 	if (meltdownProtection) {
 	    String key = event.getMessage().toString();
 	    MessageStat stat = similar.get(key);
