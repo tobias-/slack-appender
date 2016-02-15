@@ -1,14 +1,7 @@
 package be.olsson.slackappender;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.squareup.okhttp.*;
-import com.squareup.okhttp.Request.Builder;
-import org.apache.log4j.Appender;
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.Layout;
-import org.apache.log4j.Level;
-import org.apache.log4j.spi.LoggingEvent;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableMap;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -18,12 +11,27 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static java.util.Collections.singletonList;
-import static java.util.Collections.unmodifiableMap;
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.Layout;
+import org.apache.log4j.Level;
+import org.apache.log4j.spi.LoggingEvent;
 
-public class SlackAppender extends AppenderSkeleton implements Appender, Closeable {
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.squareup.okhttp.Call;
+import com.squareup.okhttp.Callback;
+import com.squareup.okhttp.MediaType;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Request.Builder;
+import com.squareup.okhttp.RequestBody;
+import com.squareup.okhttp.Response;
+
+public class SlackAppender extends AppenderSkeleton implements Closeable {
+
     private static final MediaType JSON = MediaType.parse("application/json");
     private static final Callback RESPONSE_CALLBACK = new Callback() {
         @Override
@@ -37,6 +45,12 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
         }
     };
 
+    private static class MessageStat {
+	int countSinceLastLog;
+	long lastLogged;
+	long lastSeen;
+    }
+
     private final OkHttpClient okHttpClient = new OkHttpClient();
     private final Map<Integer, String> iconMap;
     private final Map<Integer, String> colorMap;
@@ -45,6 +59,17 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
     private String channel;
     private final Gson gson = new GsonBuilder().create();
     private boolean markdown;
+    private boolean meltdownProtection = true;
+
+    @SuppressWarnings("SerializableInnerClassWithNonSerializableOuterClass")
+    private final LinkedHashMap<String, MessageStat> similar = new LinkedHashMap<String, MessageStat>() {
+	private static final long serialVersionUID = -4974367564537005090L;
+
+	@Override
+	protected boolean removeEldestEntry(Map.Entry eldest) {
+	    return size() > 50;
+	}
+    };
 
     public SlackAppender() {
         Map<Integer, String> iconMap = new HashMap<>();
@@ -71,38 +96,72 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
         activateOptions();
     }
 
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
     @Override
     protected void append(final LoggingEvent event) {
-        if (!isAppenderDisabled()) {
-            event.getNDC();
-            event.getThreadName();
-            event.getMDCCopy();
-            event.getLocationInformation();
-            event.getRenderedMessage();
-            String logStatement = getLayout().format(event);
-            SlackMessage slackMessage = new SlackMessage();
-            slackMessage.text = logStatement;
-            slackMessage.channel = channel;
-            slackMessage.iconEmoji = iconMap.get(event.getLevel().toInt());
-            slackMessage.username = username;
-            slackMessage.attachments = new ArrayList<>();
-            Attachment attachment = new Attachment();
-            attachment.color = colorMap.get(event.getLevel().toInt());
-            attachment.fallback = logStatement;
-            event.getThrowableStrRep();
-            StringWriter stringWriter = new StringWriter();
-            stringWriter.append(event.getRenderedMessage()).append('\n');
-            if (event.getThrowableInformation() != null) {
-                event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
-            }
-            attachment.text = stringWriter.toString();
-            if (markdown) {
-                slackMessage.mrkdwn = true;
-                attachment.mrkdwn_in = singletonList("text");
-            }
-            slackMessage.attachments.add(attachment);
-            postSlackMessage(slackMessage);
-        }
+	if (!isAppenderDisabled() && event.getMessage() != null) {
+	    SlackAppender.MessageStat stat = getMessageStat(event);
+
+	    if (stat == null || System.currentTimeMillis() - stat.lastLogged > 60000) {
+		event.getNDC();
+		event.getThreadName();
+		event.getMDCCopy();
+		event.getLocationInformation();
+		event.getRenderedMessage();
+		String logStatement = getLayout().format(event);
+		SlackMessage slackMessage = new SlackMessage();
+		slackMessage.channel = channel;
+		slackMessage.iconEmoji = iconMap.get(event.getLevel().toInt());
+		slackMessage.username = username;
+		slackMessage.attachments = new ArrayList<>();
+		Attachment attachment = new Attachment();
+		attachment.color = colorMap.get(event.getLevel().toInt());
+		attachment.fallback = logStatement;
+		event.getThrowableStrRep();
+		StringWriter stringWriter = new StringWriter();
+		appendMutedMessages(stat, stringWriter);
+		slackMessage.text = logStatement;
+		stringWriter.append(event.getRenderedMessage()).append('\n');
+		if (event.getThrowableInformation() != null) {
+		    event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
+		}
+		attachment.text = stringWriter.toString();
+		if (markdown) {
+		    slackMessage.mrkdwn = true;
+		    attachment.mrkdwn_in = singletonList("text");
+		}
+		slackMessage.attachments.add(attachment);
+		postSlackMessage(slackMessage);
+	    }
+	}
+    }
+
+    private void appendMutedMessages(SlackAppender.MessageStat stat, StringWriter stringWriter) {
+	if (meltdownProtection) {
+	    if (stat.countSinceLastLog > 1) {
+		stringWriter.append("Message was repeated ").append(String.valueOf(stat.countSinceLastLog)).append(" since last logging of message\n");
+		stat.countSinceLastLog = 0;
+		stat.lastLogged = System.currentTimeMillis();
+	    }
+	}
+    }
+
+    private MessageStat getMessageStat(LoggingEvent event) {
+	if (meltdownProtection) {
+	    String key = event.getMessage().toString();
+	    MessageStat stat = similar.get(key);
+	    if (stat == null) {
+		stat = new MessageStat();
+		stat.countSinceLastLog = 0;
+		stat.lastLogged = System.currentTimeMillis();
+		stat.lastSeen = System.currentTimeMillis();
+	    }
+	    similar.put(key, stat);
+
+	    stat.countSinceLastLog++;
+	    stat.lastSeen = System.currentTimeMillis();
+	}
+	return null;
     }
 
     protected void postSlackMessage(SlackMessage slackMessage) {
@@ -168,5 +227,13 @@ public class SlackAppender extends AppenderSkeleton implements Appender, Closeab
 
     public void setMarkdown(boolean markdown) {
         this.markdown = markdown;
+    }
+
+    public boolean isMeltdownProtection() {
+	return meltdownProtection;
+    }
+
+    public void setMeltdownProtection(boolean meltdownProtection) {
+	this.meltdownProtection = meltdownProtection;
     }
 }
