@@ -154,7 +154,6 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 	    MessageStat stat = similar.get(key);
 	    if (stat == null) {
 		stat = new MessageStat();
-		stat.lastLogged = System.currentTimeMillis();
 	    }
 	    similar.put(key, stat);
 
