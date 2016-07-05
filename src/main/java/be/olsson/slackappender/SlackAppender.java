@@ -7,11 +7,15 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.AppenderSkeleton;
@@ -62,6 +66,7 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
     private boolean meltdownProtection = true;
     private int similarMessageSize = 50;
     private int timeBetweenSimilarLogsMs = 60000;
+    private List<String> indentedPackagesToMute = Collections.emptyList();
 
     @SuppressWarnings("SerializableInnerClassWithNonSerializableOuterClass")
     private final LinkedHashMap<String, MessageStat> similar = new LinkedHashMap<String, MessageStat>() {
@@ -98,6 +103,31 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 	activateOptions();
     }
 
+    private class FilteredPrintWriter extends PrintWriter {
+	boolean wroteEllipsize = false;
+
+	private FilteredPrintWriter(final Writer out) {
+	    super(out);
+	}
+
+	@Override
+	public void println(final Object objectToPrint) {
+	    String line = String.valueOf(objectToPrint);
+	    if (!indentedPackagesToMute.isEmpty()) {
+		for (String packageToKeep : indentedPackagesToMute) {
+		    if (line.startsWith(packageToKeep)) {
+			if (!wroteEllipsize) {
+			    super.println("    ...");
+			}
+			wroteEllipsize = true;
+			return;
+		    }
+		}
+	    }
+	    super.println(line);
+	}
+    }
+
     @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
     @Override
     protected void append(final LoggingEvent event) {
@@ -119,13 +149,13 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 		Attachment attachment = new Attachment();
 		attachment.color = colorMap.get(event.getLevel().toInt());
 		attachment.fallback = logStatement;
-		event.getThrowableStrRep();
+		//event.getThrowableStrRep(); // Not sure this is needed
 		StringWriter stringWriter = new StringWriter();
 		appendMutedMessages(stat, stringWriter);
 		slackMessage.text = logStatement;
 		stringWriter.append(event.getRenderedMessage()).append('\n');
 		if (event.getThrowableInformation() != null) {
-		    event.getThrowableInformation().getThrowable().printStackTrace(new PrintWriter(stringWriter));
+		    event.getThrowableInformation().getThrowable().printStackTrace(new FilteredPrintWriter(stringWriter));
 		}
 		attachment.text = stringWriter.toString();
 		if (markdown) {
@@ -251,5 +281,12 @@ public class SlackAppender extends AppenderSkeleton implements Closeable {
 
     public void setTimeBetweenSimilarLogsMs(int timeBetweenSimilarLogsMs) {
 	this.timeBetweenSimilarLogsMs = timeBetweenSimilarLogsMs;
+    }
+
+    public void setPackagesToMute(final String packagesToMute) {
+	this.indentedPackagesToMute = new LinkedList<>();
+	for (String packageToMute : packagesToMute.split(",")) {
+	    indentedPackagesToMute.add("    " + packageToMute);
+	}
     }
 }
