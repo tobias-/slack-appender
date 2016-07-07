@@ -1,11 +1,17 @@
 package be.olsson.slackappender;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.Logger;
+import static org.junit.Assert.assertNotNull;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder;
+import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder;
+import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
+import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.Enumeration;
 
 @SuppressWarnings("ALL")
 public class SlackAppenderIT {
@@ -13,29 +19,37 @@ public class SlackAppenderIT {
 
     @Before
     public void setup() {
-        String webhookUrl = System.getProperty(SLACK_WEBHOOK, System.getenv(SLACK_WEBHOOK));
-        setWebhookUrl(webhookUrl);
+	ConfigurationBuilder<BuiltConfiguration> builder = ConfigurationBuilderFactory.newConfigurationBuilder();
+	String webhookUrl = System.getProperty(SLACK_WEBHOOK, System.getenv(SLACK_WEBHOOK));
+	assertNotNull(SLACK_WEBHOOK + " MUST NOT be null", webhookUrl);
+	AppenderComponentBuilder appenderComponentBuilder = builder.newAppender("Slack", "SlackAppender");
+	appenderComponentBuilder.addAttribute("webhookUrl", webhookUrl);
+	appenderComponentBuilder.add(builder.newLayout("PatternLayout").
+		addAttribute("pattern", "%-5p - [%t] %-26.26c{1}"));
+	builder.add(appenderComponentBuilder);
+	builder.add(builder.newRootLogger(Level.INFO).add(builder.newAppenderRef("Slack")));
+	Configurator.initialize(builder.build());
     }
 
-    public void setWebhookUrl(String webhookUrl) {
-        Logger logger = Logger.getRootLogger();
-        for (Enumeration appenders = logger.getAllAppenders(); appenders.hasMoreElements(); ) {
-            Appender appender = (Appender) appenders.nextElement();
-            if (appender instanceof SlackAppender) {
-                ((SlackAppender)appender).setWebhookUrl(webhookUrl);
-            }
-        }
-    }
 
     @Test
     public void sendInfoWithoutStack() throws InterruptedException {
-        Logger.getLogger(getClass()).warn("Test warning");
-        Thread.sleep(1000);
+	LogManager.getLogger(getClass()).warn("Test warning");
+	Thread.sleep(1000);
     }
 
     @Test
     public void sendInfo() throws InterruptedException {
-        Logger.getLogger(getClass()).warn("Test warning", new Throwable("This is a test exception"));
-        Thread.sleep(1000);
+	LogManager.getLogger(getClass()).warn("Test warning", new Throwable("This is a test exception"));
+	Thread.sleep(1000);
     }
+
+    @Test
+    public void sendInfoShorted() throws InterruptedException {
+	SlackAppender slack = ((LoggerContext) LogManager.getContext(false)).getConfiguration().getAppender("Slack");
+	slack.setPackagesToMute("org.junit.,sun.reflect");
+	LogManager.getLogger(getClass()).warn("Test warning", new Throwable("This is a test exception"));
+	Thread.sleep(1000);
+    }
+
 }
