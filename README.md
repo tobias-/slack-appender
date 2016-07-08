@@ -61,3 +61,8 @@ Build
 
 Please note that the tests will *NOT* work unless `SLACK_WEBHOOK` is set as an environment variables (or java properties/ ~/.gradle/gradle.properties).
 
+Releasing
+---------
+
+    SLACK_WEBHOOK=https://hooks.slack.com/services/xxxxxx/yyyyyyy/zzzzzzz ./gradlew release
+
