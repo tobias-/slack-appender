@@ -1,5 +1,6 @@
 package be.olsson.slackappender;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableMap;
 
 import java.io.Closeable;
@@ -271,9 +272,13 @@ public class SlackAppender extends AbstractAppender implements Closeable {
     }
 
     public void setPackagesToMute(final String packagesToMute) {
-	this.indentedPackagesToMute = new LinkedList<>();
-	for (String packageToMute : packagesToMute.split(",")) {
-	    indentedPackagesToMute.add("\tat " + packageToMute);
+	if (packagesToMute != null && !"".equals(packagesToMute.trim())) {
+	    this.indentedPackagesToMute = new LinkedList<>();
+	    for (String packageToMute : packagesToMute.split(",")) {
+		indentedPackagesToMute.add("\tat " + packageToMute);
+	    }
+	} else {
+	    this.indentedPackagesToMute = emptyList();
 	}
     }
 
@@ -287,7 +292,8 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	    @PluginAttribute(value = "username", defaultString = "Blazkowicz") String username,
 	    @PluginAttribute(value = "meltdownProtection", defaultBoolean = true) boolean meltdownProtection,
 	    @PluginAttribute(value = "similarMessageSize", defaultInt = 50) int similarMessageSize,
-	    @PluginAttribute(value = "timeBetweenSimilarLogsMs", defaultInt = 60000) int timeBetweenSimilarLogsMs) {
+	    @PluginAttribute(value = "timeBetweenSimilarLogsMs", defaultInt = 60000) int timeBetweenSimilarLogsMs,
+	    @PluginAttribute(value = "packagesToMute", defaultString = "") String packagesToMute) {
 	if (name == null) {
 	    LOGGER.error("No name provided for MyCustomAppenderImpl");
 	    return null;
@@ -295,7 +301,9 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	if (layout == null) {
 	    layout = PatternLayout.createDefaultLayout();
 	}
-	return new SlackAppender(name, filter, layout, webhookUrl, username, channel, meltdownProtection, similarMessageSize, timeBetweenSimilarLogsMs);
+	SlackAppender slackAppender = new SlackAppender(name, filter, layout, webhookUrl, username, channel, meltdownProtection, similarMessageSize, timeBetweenSimilarLogsMs);
+	slackAppender.setPackagesToMute(packagesToMute);
+	return slackAppender;
     }
 
 }
