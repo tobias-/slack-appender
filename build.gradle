@@ -146,7 +146,7 @@ nexusStaging {
     password = nexusPassword
 }
 
-closeAndPromoteRepository.dependsOn uploadArchives
+closeRepository.dependsOn uploadArchives
 
 createReleaseTag.dependsOn closeAndPromoteRepository
 
