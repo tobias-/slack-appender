@@ -8,7 +8,6 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -89,7 +88,7 @@ public class SlackAppender extends AbstractAppender implements Closeable {
     private SlackAppender(String name,
 			  Filter filter,
 			  Layout<? extends Serializable> layout,
-			  final String webhookUrl,
+			  final URL webhookUrl,
 			  final String username,
 			  final String channel,
 			  final boolean meltdownProtection,
@@ -216,22 +215,15 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 
     @Override
     public void close() {
+
     }
 
-    public String getWebhookUrl() {
-	return webhookUrl == null ? null : webhookUrl.toString();
+    public URL getWebhookUrl() {
+	return webhookUrl;
     }
 
-    public void setWebhookUrl(String webhookUrl) {
-	if (webhookUrl == null || webhookUrl.isEmpty()) {
-	    this.webhookUrl = null;
-	} else {
-	    try {
-		this.webhookUrl = new URL(webhookUrl);
-	    } catch (MalformedURLException e) {
-		throw new IllegalArgumentException(e);
-	    }
-	}
+    public void setWebhookUrl(URL webhookUrl) {
+	this.webhookUrl = webhookUrl;
     }
 
     public String getChannel() {
@@ -290,7 +282,7 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	    @PluginAttribute("name") String name,
 	    @PluginElement("Layout") Layout<? extends Serializable> layout,
 	    @PluginElement("Filter") final Filter filter,
-	    @PluginAttribute("webhookUrl") String webhookUrl,
+	    @PluginAttribute("webhookUrl") URL webhookUrl,
 	    @PluginAttribute("channel") String channel,
 	    @PluginAttribute(value = "username", defaultString = "Blazkowicz") String username,
 	    @PluginAttribute(value = "meltdownProtection", defaultBoolean = true) boolean meltdownProtection,
