@@ -1,6 +1,9 @@
 plugins {
 	id 'net.researchgate.release' version '2.2.0'
+    id 'gradle-nexus-staging-plugin' version '0.5.3'
 }
+
+
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -90,7 +93,6 @@ dependencies {
 	testCompile 'junit:junit:4.10'
 }
 
-
 uploadArchives {
 	repositories {
 		mavenDeployer {
@@ -133,7 +135,14 @@ uploadArchives {
 	}
 }
 
-createReleaseTag.dependsOn uploadArchives
+nexusStaging {
+    username = nexusUsername
+    password = nexusPassword
+}
+
+closeAndPromoteRepository.dependsOn uploadArchives
+
+createReleaseTag.dependsOn closeAndPromoteRepository
 
 checkCommitNeeded.dependsOn checkReleaseConfig
 
