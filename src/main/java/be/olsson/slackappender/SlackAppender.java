@@ -143,6 +143,7 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 		    }
 		}
 	    }
+	    wroteEllipsize = false;
 	    super.println(line.replace(' ', '\u00A0'));
 	}
     }
