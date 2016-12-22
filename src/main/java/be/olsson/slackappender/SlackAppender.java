@@ -64,8 +64,28 @@ public class SlackAppender extends AbstractAppender implements Closeable {
     }
 
     private final OkHttpClient okHttpClient = new OkHttpClient();
-    private final Map<Integer, String> iconMap;
-    private final Map<Integer, String> colorMap;
+    private static final Map<Integer, String> ICON_MAP;
+    private static final Map<Integer, String> COLOR_MAP;
+
+    static {
+	Map<Integer, String> iconMap = new HashMap<>();
+	iconMap.put(Level.TRACE.intLevel(), ":pawprints:");
+	iconMap.put(Level.DEBUG.intLevel(), ":beetle:");
+	iconMap.put(Level.INFO.intLevel(), ":suspect:");
+	iconMap.put(Level.WARN.intLevel(), ":goberserk:");
+	iconMap.put(Level.ERROR.intLevel(), ":feelsgood:");
+	iconMap.put(Level.FATAL.intLevel(), ":finnadie:");
+	ICON_MAP = unmodifiableMap(iconMap);
+	Map<Integer, String> colorMap = new HashMap<>();
+	colorMap.put(Level.TRACE.intLevel(), "#6f6d6d");
+	colorMap.put(Level.DEBUG.intLevel(), "#b5dae9");
+	colorMap.put(Level.INFO.intLevel(), "#5f9ea0");
+	colorMap.put(Level.WARN.intLevel(), "#ff9122");
+	colorMap.put(Level.ERROR.intLevel(), "#ff4444");
+	colorMap.put(Level.FATAL.intLevel(), "#b03e3c");
+	COLOR_MAP = unmodifiableMap(colorMap);
+    }
+
     private URL webhookUrl;
     private String username;
     private String channel;
@@ -102,22 +122,6 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	this.meltdownProtection = meltdownProtection;
 	this.similarMessageSize = similarMessageSize;
 	this.timeBetweenSimilarLogsMs = timeBetweenSimilarLogsMs;
-	Map<Integer, String> iconMap = new HashMap<>();
-	iconMap.put(Level.TRACE.intLevel(), ":pawprints:");
-	iconMap.put(Level.DEBUG.intLevel(), ":beetle:");
-	iconMap.put(Level.INFO.intLevel(), ":suspect:");
-	iconMap.put(Level.WARN.intLevel(), ":goberserk:");
-	iconMap.put(Level.ERROR.intLevel(), ":feelsgood:");
-	iconMap.put(Level.FATAL.intLevel(), ":finnadie:");
-	this.iconMap = unmodifiableMap(iconMap);
-	Map<Integer, String> colorMap = new HashMap<>();
-	colorMap.put(Level.TRACE.intLevel(), "#6f6d6d");
-	colorMap.put(Level.DEBUG.intLevel(), "#b5dae9");
-	colorMap.put(Level.INFO.intLevel(), "#5f9ea0");
-	colorMap.put(Level.WARN.intLevel(), "#ff9122");
-	colorMap.put(Level.ERROR.intLevel(), "#ff4444");
-	colorMap.put(Level.FATAL.intLevel(), "#b03e3c");
-	this.colorMap = unmodifiableMap(colorMap);
     }
 
     private class FilteredPrintWriter extends PrintWriter {
@@ -157,11 +161,11 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 		String logStatement = event.getMessage().getFormat();
 		SlackMessage slackMessage = new SlackMessage();
 		slackMessage.channel = channel;
-		slackMessage.iconEmoji = iconMap.get(event.getLevel().intLevel());
+		slackMessage.iconEmoji = ICON_MAP.get(event.getLevel().intLevel());
 		slackMessage.username = username;
 		slackMessage.attachments = new ArrayList<>();
 		Attachment attachment = new Attachment();
-		attachment.color = colorMap.get(event.getLevel().intLevel());
+		attachment.color = COLOR_MAP.get(event.getLevel().intLevel());
 		attachment.fallback = logStatement;
 		StringWriter stringWriter = new StringWriter();
 		appendMutedMessages(stat, stringWriter);
