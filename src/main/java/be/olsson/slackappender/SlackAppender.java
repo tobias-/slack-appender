@@ -4,13 +4,13 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableMap;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -29,33 +29,17 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 import org.apache.logging.log4j.core.layout.PatternLayout;
+import org.apache.logging.log4j.util.Strings;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.squareup.okhttp.Call;
-import com.squareup.okhttp.Callback;
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Request.Builder;
-import com.squareup.okhttp.RequestBody;
-import com.squareup.okhttp.Response;
+
+import be.olsson.slackappender.client.Client;
 
 @Plugin(name = "Slack", category = Node.CATEGORY, elementType = AbstractAppender.ELEMENT_TYPE, printObject = true)
 public class SlackAppender extends AbstractAppender implements Closeable {
 
-    private static final MediaType JSON = MediaType.parse("application/json");
-    private static final Callback RESPONSE_CALLBACK = new Callback() {
-	@Override
-	public void onFailure(Request request, IOException e) {
-	    e.printStackTrace();
-	}
-
-	@Override
-	public void onResponse(Response response) throws IOException {
-	    response.body().string();
-	}
-    };
+    private final Client client;
 
     private static class MessageStat {
 	int countSinceLastLog;
@@ -63,7 +47,6 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	long lastSeen;
     }
 
-    private final OkHttpClient okHttpClient = new OkHttpClient();
     private static final Map<Integer, String> ICON_MAP;
     private static final Map<Integer, String> COLOR_MAP;
 
@@ -114,7 +97,8 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 			  final String channel,
 			  final boolean meltdownProtection,
 			  final int similarMessageSize,
-			  final int timeBetweenSimilarLogsMs) {
+			  final int timeBetweenSimilarLogsMs,
+			  final Client client) {
 	super(name, filter, layout, true);
 	setWebhookUrl(webhookUrl);
 	this.username = username;
@@ -122,6 +106,7 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	this.meltdownProtection = meltdownProtection;
 	this.similarMessageSize = similarMessageSize;
 	this.timeBetweenSimilarLogsMs = timeBetweenSimilarLogsMs;
+	this.client = client;
     }
 
     private class FilteredPrintWriter extends PrintWriter {
@@ -181,6 +166,23 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	}
     }
 
+    private static Client getClientImpl(final String httpClientImpl) {
+	try {
+	    final Class<?> aClass = Class.forName(httpClientImpl);
+	    if (Client.class.isAssignableFrom(aClass)) {
+		try {
+		    return (Client) aClass.getConstructor().newInstance();
+		} catch (Exception e) {
+		    return null;
+		}
+	    } else {
+		throw new IllegalArgumentException(httpClientImpl + " does not implement " + Client.class.getName());
+	    }
+	} catch (NoClassDefFoundError | ClassNotFoundException e) {
+	    return null;
+	}
+    }
+
     private void appendMutedMessages(SlackAppender.MessageStat stat, StringWriter stringWriter) {
 	if (meltdownProtection) {
 	    if (stat.countSinceLastLog > 1) {
@@ -210,9 +212,7 @@ public class SlackAppender extends AbstractAppender implements Closeable {
     protected void postSlackMessage(SlackMessage slackMessage) {
 	try {
 	    String payload = gson.toJson(slackMessage);
-	    Request request = new Builder().url(webhookUrl).post(RequestBody.create(JSON, payload)).build();
-	    Call call = okHttpClient.newCall(request);
-	    call.enqueue(RESPONSE_CALLBACK);
+	    client.send(webhookUrl, payload);
 	} catch (Exception e) {
 	    e.printStackTrace();
 	    // Not much to do. Can't really log it via log4j
@@ -298,7 +298,8 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	    @PluginAttribute(value = "meltdownProtection", defaultBoolean = true) boolean meltdownProtection,
 	    @PluginAttribute(value = "similarMessageSize", defaultInt = 50) int similarMessageSize,
 	    @PluginAttribute(value = "timeBetweenSimilarLogsMs", defaultInt = 60000) int timeBetweenSimilarLogsMs,
-	    @PluginAttribute(value = "packagesToMute", defaultString = "") String packagesToMute) {
+	    @PluginAttribute(value = "packagesToMute", defaultString = "") String packagesToMute,
+	    @PluginAttribute(value = "httpClientImpl", defaultString = "") String httpClientImpl) {
 	if (name == null) {
 	    LOGGER.error("No name provided for MyCustomAppenderImpl");
 	    return null;
@@ -306,9 +307,31 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	if (layout == null) {
 	    layout = PatternLayout.createDefaultLayout();
 	}
-	SlackAppender slackAppender = new SlackAppender(name, filter, layout, webhookUrl, username, channel, meltdownProtection, similarMessageSize, timeBetweenSimilarLogsMs);
+	Client client = findClientImpl(httpClientImpl);
+	SlackAppender slackAppender = new SlackAppender(name, filter, layout, webhookUrl, username, channel, meltdownProtection, similarMessageSize, timeBetweenSimilarLogsMs, client);
 	slackAppender.setPackagesToMute(packagesToMute);
 	return slackAppender;
+    }
+
+    public static Client findClientImpl(final String httpClientImpl) {
+        Client client = null;
+	if (Strings.isEmpty(httpClientImpl)) {
+	    client = getClientImpl(httpClientImpl);
+	    if (client == null) {
+		throw new IllegalArgumentException("Didn't find any working " + Client.class.getName() + " implementation called " + httpClientImpl);
+	    }
+	} else {
+	    for (String s : Arrays.asList("be.olsson.slackappender.client.OkHttp2Client", "be.olsson.slackappender.client.OkHttp3Client")) {
+		client = getClientImpl(s);
+		if (client != null) {
+		    break;
+		}
+	    }
+	    if (client == null) {
+		throw new IllegalArgumentException("Didn't find any working " + Client.class.getName() + " implementation called " + httpClientImpl);
+	    }
+	}
+	return client;
     }
 
 }
