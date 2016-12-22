@@ -316,17 +316,17 @@ public class SlackAppender extends AbstractAppender implements Closeable {
     public static Client findClientImpl(final String httpClientImpl) {
         Client client = null;
 	if (Strings.isEmpty(httpClientImpl)) {
-	    client = getClientImpl(httpClientImpl);
-	    if (client == null) {
-		throw new IllegalArgumentException("Didn't find any working " + Client.class.getName() + " implementation called " + httpClientImpl);
-	    }
-	} else {
 	    for (String s : Arrays.asList("be.olsson.slackappender.client.OkHttp2Client", "be.olsson.slackappender.client.OkHttp3Client")) {
 		client = getClientImpl(s);
 		if (client != null) {
 		    break;
 		}
 	    }
+	    if (client == null) {
+		throw new IllegalArgumentException("Didn't find any working " + Client.class.getName() + " implementation called " + httpClientImpl);
+	    }
+	} else {
+	    client = getClientImpl(httpClientImpl);
 	    if (client == null) {
 		throw new IllegalArgumentException("Didn't find any working " + Client.class.getName() + " implementation called " + httpClientImpl);
 	    }
