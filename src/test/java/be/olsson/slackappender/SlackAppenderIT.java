@@ -13,6 +13,8 @@ import org.apache.logging.log4j.core.config.builder.impl.BuiltConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 
+import be.olsson.slackappender.client.OkHttp3Client;
+
 @SuppressWarnings("ALL")
 public class SlackAppenderIT {
     public static final String SLACK_WEBHOOK = "SLACK_WEBHOOK";
@@ -24,6 +26,7 @@ public class SlackAppenderIT {
 	assertNotNull(SLACK_WEBHOOK + " MUST NOT be null", webhookUrl);
 	AppenderComponentBuilder appenderComponentBuilder = builder.newAppender("SlackerFoo", "Slack");
 	appenderComponentBuilder.addAttribute("webhookUrl", webhookUrl);
+	appenderComponentBuilder.addAttribute("httpClientImpl", OkHttp3Client.class.getName());
 	appenderComponentBuilder.add(builder.newLayout("PatternLayout").
 		addAttribute("pattern", "%-5p - [%t] %-26.26c{1}"));
 	builder.add(appenderComponentBuilder);
