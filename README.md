@@ -10,10 +10,49 @@ Dependencies
 For now, depends on both gson and okhttp.
 
 
-Using the API
+Using the API with Log4j 1.x
 =============================
 
-*TODO*
+With Gradle
+-----------
+
+        compile 'be.olsson:slack-appender:0.99.7'
+
+With Maven
+----------
+
+        <dependency>
+                <groupId>be.olsson</groupId>
+                <artifactId>slack-appender</artifactId>
+                <version>0.99.7</version>
+        </dependency>
+
+Using
+-----
+
+Example with both Console and Slack
+
+```properties
+log4j.appender.Foo=org.apache.log4j.ConsoleAppender
+log4j.appender.Foo.layout=org.apache.log4j.PatternLayout
+log4j.appender.Foo.layout.conversionPattern=%-5p - [%t] %-26.26c{1} - %m\n
+
+log4j.appender.Bar=be.olsson.slackappender.SlackAppender
+log4j.appender.Bar.layout=org.apache.log4j.PatternLayout
+log4j.appender.Bar.layout.conversionPattern=%-5p - [%t] %-26.26c{1} - %n
+
+log4j.rootLogger=INFO,Foo,Bar
+```
+
+Minimal:
+```properties
+log4j.appender.Slack=be.olsson.slackappender.SlackAppender
+log4j.rootLogger=INFO,Slack
+
+```
+
+Using the API with Log4j 2.x
+=============================
 
 With Gradle
 -----------
@@ -32,24 +71,43 @@ With Maven
 Using
 -----
 
-Example with both Console and Slack
+Example with both Console and Slack (but only error logging goes on slack)
 
-```
-log4j.appender.Foo=org.apache.log4j.ConsoleAppender
-log4j.appender.Foo.layout=org.apache.log4j.PatternLayout
-log4j.appender.Foo.layout.conversionPattern=%-5p - [%t] %-26.26c{1} - %m\n
-
-log4j.appender.Bar=be.olsson.slackappender.SlackAppender
-log4j.appender.Bar.layout=org.apache.log4j.PatternLayout
-log4j.appender.Bar.layout.conversionPattern=%-5p - [%t] %-26.26c{1} - %n
-
-log4j.rootLogger=INFO,Foo,Bar
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+	<Console name="StdOut" target="SYSTEM_OUT">
+	    <PatternLayout pattern="%-5p - [%t] %-26.26c{1} - %X{tag} - %m\n"/>
+	</Console>
+	<Slack name="Slack" channel="log4jslackchannel">
+	    <PatternLayout pattern="%-5p - [%t]"/>
+	</Slack>
+    </Appenders>
+    <Loggers>
+	<Root level="info">
+	    <AppenderRef ref="StdOut"/>
+	    <AppenderRef ref="Slack" level="error"/>
+	</Root>
+    </Loggers>
+</Configuration>
 ```
 
 Minimal:
-```
-log4j.appender.Slack=be.olsson.slackappender.SlackAppender
-log4j.rootLogger=INFO,Slack
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+	<Slack name="Slack" channel="log4jslackchannel">
+	    <PatternLayout pattern="%-5p - [%t]"/>
+	</Slack>
+    </Appenders>
+    <Loggers>
+	<Root level="info">
+	    <AppenderRef ref="Slack" level="info"/>
+	</Root>
+    </Loggers>
+</Configuration>
 
 ```
 
@@ -59,7 +117,7 @@ Build
 
     ./gradlew build
 
-Please note that the tests will *NOT* work unless `SLACK_WEBHOOK` is set as an environment variables (or java properties/ ~/.gradle/gradle.properties).
+Please note that the tests will *NOT* work unless `SLACK_WEBHOOK` is set as an environment variables (or java property or ~/.gradle/gradle.properties).
 
 Releasing
 ---------
