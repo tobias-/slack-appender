@@ -4,10 +4,8 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableMap;
 
 import java.io.Closeable;
-import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
-import java.io.Writer;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -109,31 +107,25 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	this.client = client;
     }
 
-    private class FilteredPrintWriter extends PrintWriter {
-	private boolean wroteEllipsize = false;
-	private int lineCount = 0;
+    private void mutePackages(final String formattedMessage, final StringWriter result) {
+	boolean wroteEllipsize = false;
 
-	private FilteredPrintWriter(final Writer out) {
-	    super(out);
-	}
-
-	@Override
-	public void println(final Object objectToPrint) {
-	    lineCount++;
-	    String line = String.valueOf(objectToPrint);
+	String[] lines = formattedMessage.split("\r?\n\r?");
+	loop: for (int lineCount = 0; lineCount < lines.length; lineCount++) {
+	    String line = lines[lineCount];
 	    if (lineCount >= unmodifiedFirstLines && !indentedPackagesToMute.isEmpty()) {
 		for (String packageToMute : indentedPackagesToMute) {
 		    if (line.startsWith(packageToMute)) {
 			if (!wroteEllipsize) {
-			    super.println("\t...");
+			    result.append("\t...\n");
 			}
 			wroteEllipsize = true;
-			return;
+			continue loop;
 		    }
 		}
 	    }
 	    wroteEllipsize = false;
-	    super.println(line.replace(' ', '\u00A0'));
+	    result.append(line).append("\n");
 	}
     }
 
@@ -143,7 +135,7 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 	if (!isAppenderDisabled() && event.getMessage() != null) {
 	    SlackAppender.MessageStat stat = getMessageStat(event);
 	    if (stat == null || System.currentTimeMillis() - stat.lastLogged > timeBetweenSimilarLogsMs) {
-		String logStatement = event.getMessage().getFormat();
+		String logStatement =  event.getMessage().getFormat();
 		SlackMessage slackMessage = new SlackMessage();
 		slackMessage.channel = channel;
 		slackMessage.iconEmoji = ICON_MAP.get(event.getLevel().intLevel());
@@ -152,14 +144,11 @@ public class SlackAppender extends AbstractAppender implements Closeable {
 		Attachment attachment = new Attachment();
 		attachment.color = COLOR_MAP.get(event.getLevel().intLevel());
 		attachment.fallback = logStatement;
-		StringWriter stringWriter = new StringWriter();
+		StringWriter stringWriter = new StringWriter().append("```\n");
 		appendMutedMessages(stat, stringWriter);
 		slackMessage.text = attachment.fallback;
-		stringWriter.append(event.getMessage().getFormattedMessage());
-		if (event.getThrown() != null) {
-		    event.getThrown().printStackTrace(new FilteredPrintWriter(stringWriter));
-		}
-		attachment.text = stringWriter.toString();
+		mutePackages(getLayout().toSerializable(event).toString(), stringWriter);
+		attachment.text = stringWriter.append("```\n").toString();
 		slackMessage.attachments.add(attachment);
 		postSlackMessage(slackMessage);
 	    }

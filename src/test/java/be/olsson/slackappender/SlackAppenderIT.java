@@ -22,13 +22,14 @@ public class SlackAppenderIT {
     @Before
     public void setup() {
 	ConfigurationBuilder<BuiltConfiguration> builder = ConfigurationBuilderFactory.newConfigurationBuilder();
+	builder.setPackages("be.olsson");
 	String webhookUrl = System.getProperty(SLACK_WEBHOOK, System.getenv(SLACK_WEBHOOK));
 	assertNotNull(SLACK_WEBHOOK + " MUST NOT be null", webhookUrl);
 	AppenderComponentBuilder appenderComponentBuilder = builder.newAppender("SlackerFoo", "Slack");
 	appenderComponentBuilder.addAttribute("webhookUrl", webhookUrl);
 	appenderComponentBuilder.addAttribute("httpClientImpl", OkHttp3Client.class.getName());
 	appenderComponentBuilder.add(builder.newLayout("PatternLayout").
-		addAttribute("pattern", "%-5p - [%t] %-26.26c{1}"));
+		addAttribute("pattern", "this should be visible %-5p - [%t] %-26.26c{1}%n"));
 	builder.add(appenderComponentBuilder);
 	builder.add(builder.newRootLogger(Level.INFO).add(builder.newAppenderRef("SlackerFoo")));
 	Configurator.initialize(builder.build());
